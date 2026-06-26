@@ -142,6 +142,8 @@ public extension Haomissyou {
             var config = btn.configuration ?? .plain()
             config.imagePlacement = .top
             config.imagePadding   = Y
+            config.background.backgroundColor = .clear
+            config.background.backgroundColorTransformer = .init { _ in .clear }
             btn.configuration = config
         } else {
             btn.layoutIfNeeded()
@@ -172,6 +174,8 @@ public extension Haomissyou {
             var config = btn.configuration ?? .plain()
             config.imagePlacement = .bottom
             config.imagePadding   = Y
+            config.background.backgroundColor = .clear
+            config.background.backgroundColorTransformer = .init { _ in .clear }
             btn.configuration = config
         } else {
             btn.layoutIfNeeded()
@@ -201,6 +205,8 @@ public extension Haomissyou {
             var config = btn.configuration ?? .plain()
             config.imagePlacement = .trailing
             config.imagePadding   = X
+            config.background.backgroundColor = .clear
+            config.background.backgroundColorTransformer = .init { _ in .clear }
             btn.configuration = config
         } else {
             btn.layoutIfNeeded()
@@ -229,6 +235,8 @@ public extension Haomissyou {
             var config = btn.configuration ?? .plain()
             config.imagePlacement = .leading
             config.imagePadding   = X
+            config.background.backgroundColor = .clear
+            config.background.backgroundColorTransformer = .init { _ in .clear }
             btn.configuration = config
         } else {
             btn.layoutIfNeeded()
@@ -248,6 +256,8 @@ public extension Haomissyou {
             var config = btn.configuration ?? .plain()
             config.imagePlacement = .leading
             config.imagePadding   = 0
+            config.background.backgroundColor = .clear
+            config.background.backgroundColorTransformer = .init { _ in .clear }
             btn.configuration = config
         } else {
             btn.layoutIfNeeded()

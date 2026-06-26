@@ -249,7 +249,7 @@ class Demo1: UIViewController {
     }
     
     private func setupButtons() {
-        let btn1 = UIButton.init(type: .custom).haomissyou
+        let btn1 = UIButton(type: .custom).haomissyou
             .addToSuperview(scrollView)
             //.frame("{{20, 350}, {360, 40}}")
             .batch({ hm in
@@ -266,8 +266,11 @@ class Demo1: UIViewController {
             .shadowOpacity(0.55)
             .shadowOffset("{0, 4}")
             .shadowRadius(12)
-        
+            .image(UIImage(systemName: "heart",
+                           withConfiguration: UIImage.SymbolConfiguration(pointSize: 30))?
+                .withRenderingMode(.alwaysOriginal) as Any)
             .title("介是一个按钮~点击改变颜色")
+            .imageRightTitleLeft(10)
             .color(UIColor.black)
             .font(20)
             .attributedSubstringForState("介是", UIColor.systemGreen, UIControl.State.normal)
