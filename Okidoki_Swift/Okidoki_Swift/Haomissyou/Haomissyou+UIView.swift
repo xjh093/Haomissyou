@@ -310,4 +310,85 @@ public extension Haomissyou {
         if !view.isUserInteractionEnabled { block(view) }
         return self
     }
+    
+    // MARK: gradient
+
+    /// 设置渐变颜色。内部使用 CAGradientLayer，自动插入 layer 层级最底层。
+    /// 需在 view 已有 frame/bounds 后调用，或配合 then { } 在 layoutSubviews 后刷新。
+    @discardableResult
+    func gradient(_ colors: [UIColor]) -> Haomissyou {
+        let layer = view._haomissyouGradientLayer
+        layer.colors = colors.map(\.cgColor)
+        layer.frame = view.bounds
+        return self
+    }
+
+    /// 设置渐变方向，需在 gradient(_:) 之后或之前调用均可。
+    @discardableResult
+    func gradientDirection(_ direction: HaomissyouGradientDirection) -> Haomissyou {
+        let layer = view._haomissyouGradientLayer
+        let (start, end) = direction.points
+        layer.startPoint = start
+        layer.endPoint   = end
+        layer.frame      = view.bounds
+        return self
+    }
+}
+
+// MARK: - HaomissyouGradientDirection
+
+/// 渐变方向
+public enum HaomissyouGradientDirection {
+    case horizontal             // 左 → 右
+    case vertical               // 上 → 下
+    case diagonalDownRight      // 左上 → 右下
+    case diagonalDownLeft       // 右上 → 左下
+    case custom(start: CGPoint, end: CGPoint)
+
+    fileprivate var points: (start: CGPoint, end: CGPoint) {
+        switch self {
+        case .horizontal:         return (CGPoint(x: 0, y: 0.5), CGPoint(x: 1, y: 0.5))
+        case .vertical:           return (CGPoint(x: 0.5, y: 0), CGPoint(x: 0.5, y: 1))
+        case .diagonalDownRight:  return (CGPoint(x: 0, y: 0),   CGPoint(x: 1, y: 1))
+        case .diagonalDownLeft:   return (CGPoint(x: 1, y: 0),   CGPoint(x: 0, y: 1))
+        case .custom(let s, let e): return (s, e)
+        }
+    }
+}
+
+// MARK: - UIView gradient layer (associated object)
+
+private var _haomissyouGradientLayerKey: UInt8 = 0
+
+/// 隐藏的辅助视图：随父视图 layoutSubviews 自动同步渐变层 frame，无需手动管理。
+private final class _GradientLayoutObserver: UIView {
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        superview?._haomissyouGradientLayer.frame = superview?.bounds ?? .zero
+    }
+}
+
+private extension UIView {
+    /// 懒加载渐变层：首次访问时创建并插入 layer 层级最底层，同时挂载布局观察子视图。
+    var _haomissyouGradientLayer: CAGradientLayer {
+        if let existing = objc_getAssociatedObject(self, &_haomissyouGradientLayerKey) as? CAGradientLayer {
+            return existing
+        }
+        let gradientLayer = CAGradientLayer()
+        gradientLayer.frame = bounds
+        // 默认方向：上 → 下
+        gradientLayer.startPoint = CGPoint(x: 0.5, y: 0)
+        gradientLayer.endPoint   = CGPoint(x: 0.5, y: 1)
+        layer.insertSublayer(gradientLayer, at: 0)
+        objc_setAssociatedObject(self, &_haomissyouGradientLayerKey, gradientLayer, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+
+        // 添加布局观察视图，利用其 layoutSubviews 自动同步渐变层 frame
+        let observer = _GradientLayoutObserver()
+        observer.isHidden = true
+        observer.isUserInteractionEnabled = false
+        observer.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        addSubview(observer)
+
+        return gradientLayer
+    }
 }

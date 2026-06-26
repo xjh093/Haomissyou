@@ -64,6 +64,12 @@ extension Haomissyou {
             }
             _batchConstraints.append(constraint)
         } else {
+            // Deactivate any existing constraint with the same identifier to avoid conflicts
+            if let id = constraint.identifier {
+                (view.constraints + (view.superview?.constraints ?? []))
+                    .first { $0.identifier == id }?
+                    .isActive = false
+            }
             constraint.isActive = true
         }
     }

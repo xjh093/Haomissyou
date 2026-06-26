@@ -11,7 +11,7 @@ class Demo1: UIViewController {
 
     private var view3: UIView?
     private var label1: HaomissyouLabel?
-    
+    private var view4: UIView?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -277,9 +277,11 @@ class Demo1: UIViewController {
             .titleForState("按钮被点击了", UIControl.State.selected)
             .addControlEvent(.touchUpInside) { sender in
                 print("按钮被点击了")
-                sender.isSelected = !sender.isSelected
                 
                 self.view3!.haomissyou.userInteractionEnabled(sender.isSelected)
+                self.view4!.haomissyou.userInteractionEnabled(sender.isSelected)
+                
+                sender.isSelected = !sender.isSelected
             }
             .getView();
         
@@ -307,5 +309,28 @@ class Demo1: UIViewController {
             })
             .debugBorder()
             .getView();
+        
+        self.view4 = UIView().haomissyou
+            .tag(1000)
+            .addToSuperview(scrollView)
+            .cnRadius(20)
+            .mkCorners([1,3])
+            .mtBounds(1)
+            .gradient([.systemRed, .systemGreen])
+            .gradientDirection(.diagonalDownRight)
+            .batch { hm in
+                hm.topAnchor([label1.bottomAnchor, 20])
+                    .leadingAnchor(label1)
+                    .widthAnchor(180)
+                    .heightAnchor(60)
+            }
+            .whenEnabled { view in
+                view.haomissyou.widthAnchor(300)
+            }
+            .whenDisabled { view in
+                view.haomissyou.widthAnchor(180)
+            }
+            .getView()
+            
     }
 }
