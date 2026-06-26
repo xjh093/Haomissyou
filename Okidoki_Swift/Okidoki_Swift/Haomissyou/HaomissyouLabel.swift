@@ -58,4 +58,57 @@ public final class HaomissyouLabel: UILabel {
         s.height += ins.top  + ins.bottom
         return s
     }
+    
+    
+#if DEBUG
+    // MARK: - Debug
+
+    /// 调试开关：可视化展示 textInsets 区域。
+    ///
+    /// 开启后叠加绘制：
+    /// - 红色虚线框：标签 bounds 边界
+    /// - 蓝色实线框：文字实际绘制区域（insets 收缩后）
+    /// - 半透明红色填充：四个 inset 区域
+    public var debugBorder: Bool = false {
+        didSet { setNeedsDisplay() }
+    }
+
+    public override func draw(_ rect: CGRect) {
+        super.draw(rect)
+        guard debugBorder, let ctx = UIGraphicsGetCurrentContext() else { return }
+
+        let ins = resolvedInsets
+        let textRect = rect.inset(by: ins)
+
+        ctx.saveGState()
+
+        // 半透明红色填充：insets 区域
+        ctx.setFillColor(UIColor.systemRed.withAlphaComponent(0.18).cgColor)
+        // top
+        ctx.fill(CGRect(x: rect.minX, y: rect.minY,
+                        width: rect.width, height: ins.top))
+        // bottom
+        ctx.fill(CGRect(x: rect.minX, y: rect.maxY - ins.bottom,
+                        width: rect.width, height: ins.bottom))
+        // left（top/bottom 之间）
+        ctx.fill(CGRect(x: rect.minX, y: rect.minY + ins.top,
+                        width: ins.left, height: rect.height - ins.top - ins.bottom))
+        // right
+        ctx.fill(CGRect(x: rect.maxX - ins.right, y: rect.minY + ins.top,
+                        width: ins.right, height: rect.height - ins.top - ins.bottom))
+
+        // 蓝色实线：文字绘制区域
+        ctx.setStrokeColor(UIColor.systemBlue.cgColor)
+        ctx.setLineWidth(1)
+        ctx.stroke(textRect.insetBy(dx: 0.5, dy: 0.5))
+
+        // 红色虚线：标签边界
+        ctx.setStrokeColor(UIColor.systemRed.cgColor)
+        ctx.setLineWidth(1)
+        ctx.setLineDash(phase: 0, lengths: [4, 2])
+        ctx.stroke(rect.insetBy(dx: 0.5, dy: 0.5))
+
+        ctx.restoreGState()
+    }
+#endif
 }

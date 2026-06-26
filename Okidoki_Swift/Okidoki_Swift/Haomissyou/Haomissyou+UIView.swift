@@ -9,6 +9,21 @@
 
 import UIKit
 
+/// UIView associated object keys for whenEnabled / whenDisabled blocks
+private var _whenEnabledKey: UInt8 = 0
+private var _whenDisabledKey: UInt8 = 0
+
+private extension UIView {
+    var _whenEnabledBlock: ((UIView) -> Void)? {
+        get { objc_getAssociatedObject(self, &_whenEnabledKey) as? (UIView) -> Void }
+        set { objc_setAssociatedObject(self, &_whenEnabledKey, newValue, .OBJC_ASSOCIATION_COPY_NONATOMIC) }
+    }
+    var _whenDisabledBlock: ((UIView) -> Void)? {
+        get { objc_getAssociatedObject(self, &_whenDisabledKey) as? (UIView) -> Void }
+        set { objc_setAssociatedObject(self, &_whenDisabledKey, newValue, .OBJC_ASSOCIATION_COPY_NONATOMIC) }
+    }
+}
+
 // MARK: - Private Helpers
 
 private extension Haomissyou {
@@ -251,13 +266,48 @@ public extension Haomissyou {
         superView.addSubview(view)
         return self
     }
-
-    // MARK: userInteractionEnabled
-    /// Bool / NSNumber / String
+    
+    // MARK: then
+    /// 在链式调用中插入任意逻辑，block 提供当前 view 引用，执行后继续链式。
     @discardableResult
-    func userInteractionEnabled(_ value: Any) -> Haomissyou {
+    func then(_ block: (UIView) -> Void) -> Haomissyou {
+        block(view)
+        return self
+    }
+    
+    // MARK: userInteractionEnabled
+    /// Bool / NSNumber / String；设置后触发内联 block 及之前通过 whenEnabled/whenDisabled 注册的 block。
+    @discardableResult
+    func userInteractionEnabled(_ value: Any,
+                                whenEnabled: ((UIView) -> Void)? = nil,
+                                whenDisabled: ((UIView) -> Void)? = nil) -> Haomissyou {
         guard let b = bool(from: value) else { return self }
         view.isUserInteractionEnabled = b
+        if b {
+            whenEnabled?(view)
+            view._whenEnabledBlock?(view)
+        } else {
+            whenDisabled?(view)
+            view._whenDisabledBlock?(view)
+        }
+        return self
+    }
+
+    // MARK: whenEnabled
+    /// 注册 block；当前已是 enabled 状态则立即调用，同时保存到 view 上以便后续再次触发。
+    @discardableResult
+    func whenEnabled(_ block: @escaping (UIView) -> Void) -> Haomissyou {
+        view._whenEnabledBlock = block
+        if view.isUserInteractionEnabled { block(view) }
+        return self
+    }
+
+    // MARK: whenDisabled
+    /// 注册 block；当前已是 disabled 状态则立即调用，同时保存到 view 上以便后续再次触发。
+    @discardableResult
+    func whenDisabled(_ block: @escaping (UIView) -> Void) -> Haomissyou {
+        view._whenDisabledBlock = block
+        if !view.isUserInteractionEnabled { block(view) }
         return self
     }
 }

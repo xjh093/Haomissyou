@@ -70,6 +70,8 @@ class Demo1: UIViewController {
             .bgColor(UIColor.systemOrange)
             .lines(0)
             .text("Example for UIScrollView / UIView / Gesture / UILabel / UIButton / HaomissyouLabel")
+            .debugBorder(false)
+        
         
         let view1 = UIView().haomissyou
             .tag("123")
@@ -133,6 +135,12 @@ class Demo1: UIViewController {
         .shadowOffset("{0, 3}")
         .shadowRadius(6)
         .shadowPath(shadowPath)
+        .whenEnabled({ view in
+            view.backgroundColor = UIColor.systemBlue
+        })
+        .whenDisabled({ view in
+            view.backgroundColor = UIColor.systemGreen
+        })
         .getView();
         self.view3 = view3
         
@@ -199,6 +207,7 @@ class Demo1: UIViewController {
     
     private func setupLabels() {
         self.label1 = HaomissyouLabel().haomissyou
+            .debugBorder()
             .addToSuperview(scrollView)
             //.frame("{{20, 340}, {360, 85}}")
             .batch({ hm in
@@ -207,7 +216,7 @@ class Demo1: UIViewController {
                     .widthAnchor(360)
                     //.heightAnchor(85)
             })
-            .textInsets(UIEdgeInsets(top: 5, left: 0, bottom: 10, right: 0))
+            .textInsets(UIEdgeInsets(top: 5, left: 5, bottom: 10, right: 10))
             .cnRadius(8)
             //.mtBounds(1)
             .shadowColor("#111111")
@@ -269,6 +278,8 @@ class Demo1: UIViewController {
             .addControlEvent(.touchUpInside) { sender in
                 print("按钮被点击了")
                 sender.isSelected = !sender.isSelected
+                
+                self.view3!.haomissyou.userInteractionEnabled(sender.isSelected)
             }
             .getView();
         
@@ -281,6 +292,7 @@ class Demo1: UIViewController {
                 hm.leadingAnchor([btn1])
                     .topAnchor([btn1.bottomAnchor, 20])
             }
+            .debugBorder()
             .getView();
         
         let label2 = HaomissyouLabel().haomissyou
@@ -293,6 +305,7 @@ class Demo1: UIViewController {
                     .topAnchor([label1])
                     .trailingAnchor([btn1])
             })
+            .debugBorder()
             .getView();
     }
 }

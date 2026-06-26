@@ -7,8 +7,8 @@
 //
 //  MIT License
 //
-// version: 0.1.0
-// 2026-06-25 11:20:29
+// version: 0.1.1
+// 2026-06-26 11:17:13
 
 
 import UIKit
@@ -35,7 +35,7 @@ public final class Haomissyou {
     // MARK: Internal — AutoLayout batch state
     var _batchDepth: Int = 0
     var _batchConstraints: [NSLayoutConstraint] = []
-
+    
     init(_ view: UIView) {
         self.view = view
     }

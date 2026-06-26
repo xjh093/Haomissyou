@@ -390,4 +390,22 @@ public extension Haomissyou {
         lbl.highlightedTextColor = c
         return self
     }
+    
+#if DEBUG
+    // MARK: debugBorder
+
+    /// 开启 / 关闭 HaomissyouLabel 的 textInsets 可视化调试边框。
+    /// 仅对 HaomissyouLabel 生效；上线前务必关闭。
+    @discardableResult
+    func debugBorder(_ value: Any = true) -> Haomissyou {
+        guard let lbl = view as? HaomissyouLabel else { return self }
+        switch value {
+        case let b as Bool:      lbl.debugBorder = b
+        case let n as NSNumber:  lbl.debugBorder = n.boolValue
+        case let s as String:    lbl.debugBorder = (s as NSString).boolValue
+        default: lbl.debugBorder = true
+        }
+        return self
+    }
+#endif
 }
