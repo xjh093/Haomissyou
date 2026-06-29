@@ -67,7 +67,7 @@ extension Haomissyou {
             // Deactivate any existing constraint with the same identifier to avoid conflicts
             if let id = constraint.identifier {
                 (view.constraints + (view.superview?.constraints ?? []))
-                    .first { $0.identifier == id }?
+                    .first { $0.identifier == id && ($0.firstItem === view || $0.secondItem === view) }?
                     .isActive = false
             }
             constraint.isActive = true
