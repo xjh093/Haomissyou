@@ -131,7 +131,13 @@ open class HaomissyouBaseStackView: UIView {
 
     /// 水平排列还是垂直排列，默认水平排列
     public var axis: HaomissyouStackViewAxis = .horizontal {
-        didSet { guard axis != oldValue else { return }; markedDirty = true; setNeedsUpdateConstraints() }
+        didSet {
+            guard axis != oldValue else { return }
+            // axis 变化时，重新调整所有 label 在新旧两个方向上的压缩阻力
+            allViews.forEach { adjustLabelCompression($0, oldAxis: oldValue) }
+            markedDirty = true
+            setNeedsUpdateConstraints()
+        }
     }
 
     /// 纵轴对齐方式
@@ -165,6 +171,8 @@ open class HaomissyouBaseStackView: UIView {
     var layoutManager: HaomissyouFlexManager = HaomissyouFlexManager()
     var markedDirty: Bool = true
     private var allViews: [UIView] = []
+    /// O(1) 成员判断，与 allViews 保持同步
+    private var allViewsSet: Set<ObjectIdentifier> = []
 
     // MARK: - Init
 
@@ -190,9 +198,10 @@ open class HaomissyouBaseStackView: UIView {
     // MARK: - Arranging subviews
 
     public func addArrangedSubview(_ view: UIView) {
-        guard !allViews.contains(view) else { return }
+        guard !allViewsSet.contains(ObjectIdentifier(view)) else { return }
         view.hmFlex.stackView = self
         allViews.append(view)
+        allViewsSet.insert(ObjectIdentifier(view))
         adjustLabelCompression(view)
         adjustNestedStackView(view)
         addSubview(view)
@@ -207,11 +216,12 @@ open class HaomissyouBaseStackView: UIView {
     }
 
     public func insertArrangedSubview(_ view: UIView, at index: Int) {
-        guard !allViews.contains(view) else { return }
+        guard !allViewsSet.contains(ObjectIdentifier(view)) else { return }
         adjustNestedStackView(view)
         addSubview(view)
         view.hmFlex.stackView = self
         allViews.insert(view, at: index)
+        allViewsSet.insert(ObjectIdentifier(view))
         adjustLabelCompression(view)
         guard !view.isHidden else { return }
         markedDirty = true
@@ -219,9 +229,12 @@ open class HaomissyouBaseStackView: UIView {
     }
 
     public func removeArrangedSubview(_ view: UIView) {
-        guard allViews.contains(view) else { return }
-        view.removeFromSuperview()
+        guard allViewsSet.contains(ObjectIdentifier(view)) else { return }
+        // 先从索引移除，再调用 removeFromSuperview，
+        // 确保 willRemoveSubview 触发时 guard 提前返回，避免重复清理
         allViews.removeAll { $0 === view }
+        allViewsSet.remove(ObjectIdentifier(view))
+        view.removeFromSuperview()
         markedDirty = true
         setNeedsUpdateConstraints()
     }
@@ -229,7 +242,7 @@ open class HaomissyouBaseStackView: UIView {
     // MARK: - Custom spacing
 
     public func setCustomSpacing(_ spacing: CGFloat, afterView view: UIView) {
-        guard allViews.contains(view) else { return }
+        guard allViewsSet.contains(ObjectIdentifier(view)) else { return }
         let cfg = view.hmFlex
         guard cfg.spacing != spacing else { return }
         cfg.setSpacingWithoutUpdate(spacing)
@@ -244,38 +257,39 @@ open class HaomissyouBaseStackView: UIView {
     }
 
     public func setCustomMinSpacing(_ minSpacing: CGFloat, afterView view: UIView) {
-        guard allViews.contains(view) else { return }
+        guard allViewsSet.contains(ObjectIdentifier(view)) else { return }
         let cfg = view.hmFlex
         guard cfg.minSpacing != minSpacing else { return }
         cfg.setMinSpacingWithoutUpdate(minSpacing)
         guard !view.isHidden else { return }
         guard !layoutManager.constraints.isEmpty else { return }
         let arr = filterConstraints { $0.hmItem.view === view && $0.hmItem.type == .minSpacing }
-        if arr.count > 0 {
-            arr.first?.constant = max(0, minSpacing)
-            arr.last?.constant  = max(0, minSpacing)
+        if arr.count > 0, minSpacing >= 0 {
+            arr.first?.constant = minSpacing
+            arr.last?.constant  = minSpacing
         } else {
+            // 约束尚未创建，或负值表示"清除约束"，均需全量重建
             markedDirty = true; setNeedsUpdateConstraints()
         }
     }
 
     public func setCustomMaxSpacing(_ maxSpacing: CGFloat, afterView view: UIView) {
-        guard allViews.contains(view) else { return }
+        guard allViewsSet.contains(ObjectIdentifier(view)) else { return }
         let cfg = view.hmFlex
         guard cfg.maxSpacing != maxSpacing else { return }
         cfg.setMaxSpacingWithoutUpdate(maxSpacing)
         guard !view.isHidden else { return }
         guard !layoutManager.constraints.isEmpty else { return }
         let arr = filterConstraints { $0.hmItem.view === view && $0.hmItem.type == .maxSpacing }
-        if arr.count > 0 {
-            arr.first?.constant = max(0, maxSpacing)
+        if arr.count > 0, maxSpacing >= 0 {
+            arr.first?.constant = maxSpacing
         } else {
             markedDirty = true; setNeedsUpdateConstraints()
         }
     }
 
     public func setFlex(_ flex: Int, forView view: UIView) {
-        guard allViews.contains(view), flex >= 0 else { return }
+        guard allViewsSet.contains(ObjectIdentifier(view)), flex >= 0 else { return }
         let cfg = view.hmFlex
         guard cfg.flexValue != flex else { return }
         cfg.flexValue = flex
@@ -284,7 +298,7 @@ open class HaomissyouBaseStackView: UIView {
     }
 
     public func setFlexibleSpacing(_ flexible: Bool, afterView view: UIView) {
-        guard allViews.contains(view) else { return }
+        guard allViewsSet.contains(ObjectIdentifier(view)) else { return }
         guard flexible != view.hmFlex.isFlexSpace else { return }
         view.hmFlex.isFlexSpace = flexible
         guard !view.isHidden else { return }
@@ -292,7 +306,7 @@ open class HaomissyouBaseStackView: UIView {
     }
 
     public func setAlignment(_ alignment: HaomissyouAlign, forView view: UIView) {
-        guard allViews.contains(view) else { return }
+        guard allViewsSet.contains(ObjectIdentifier(view)) else { return }
         let cfg = view.hmFlex
         guard alignment != cfg.alignSelf else { return }
         cfg.alignSelf = alignment
@@ -301,7 +315,7 @@ open class HaomissyouBaseStackView: UIView {
     }
 
     public func setAlignmentStartSpacing(_ spacing: CGFloat, forView view: UIView) {
-        guard allViews.contains(view) else { return }
+        guard allViewsSet.contains(ObjectIdentifier(view)) else { return }
         let cfg = view.hmFlex
         guard spacing != cfg.startSpacing else { return }
         cfg.startSpacing = spacing
@@ -310,7 +324,7 @@ open class HaomissyouBaseStackView: UIView {
     }
 
     public func setAlignmentEndSpacing(_ spacing: CGFloat, forView view: UIView) {
-        guard allViews.contains(view) else { return }
+        guard allViewsSet.contains(ObjectIdentifier(view)) else { return }
         let cfg = view.hmFlex
         guard cfg.endSpacing != spacing else { return }
         cfg.endSpacing = spacing
@@ -319,6 +333,19 @@ open class HaomissyouBaseStackView: UIView {
     }
 
     // MARK: - Layout
+
+    open override func willRemoveSubview(_ subview: UIView) {
+        super.willRemoveSubview(subview)
+        let key = ObjectIdentifier(subview)
+        // removeArrangedSubview 会先从 allViewsSet 移除再调 removeFromSuperview，
+        // 所以此时 key 已不在 set 中，guard 会提前返回，避免重复清理。
+        // 只有外部直接调用 view.removeFromSuperview() 才会执行以下逻辑。
+        guard allViewsSet.contains(key) else { return }
+        allViews.removeAll { $0 === subview }
+        allViewsSet.remove(key)
+        markedDirty = true
+        setNeedsUpdateConstraints()
+    }
 
     open override func updateConstraints() {
         guard markedDirty else { super.updateConstraints(); return }
@@ -333,13 +360,52 @@ open class HaomissyouBaseStackView: UIView {
 
     open override func layoutSubviews() {
         super.layoutSubviews()
+        // 若直接嵌入 HaomissyouScrollView，施加反向 transform 以抵消父级镜像，
+        // 使内容视觉保持正常方向（净效果：scaleX(-1) × scaleX(-1) = identity）。
+        // 滚动指示器没有此逻辑，只经历父级一次翻转，方向正确。
+        if let scrollView = superview as? HaomissyouScrollView {
+            let isRTL = scrollView.effectiveUserInterfaceLayoutDirection == .rightToLeft
+            let t: CGAffineTransform = isRTL ? CGAffineTransform(scaleX: -1, y: 1) : .identity
+            if self.transform != t { self.transform = t }
+        }
     }
 
     open override var intrinsicContentSize: CGSize { .zero }
 
+    /// 计算 StackView 在给定尺寸约束下的最小合适尺寸。
+    ///
+    /// 利用 AutoLayout 引擎进行计算：主轴方向使用 `.fittingSizeLevel` 压缩，
+    /// 交叉轴方向使用 `.required` 固定（等于传入的 size 分量，0 则用系统压缩值）。
+    ///
+    /// 常见用途：`UITableViewCell` 自动高度、`preferredContentSize` 计算等。
+    open override func sizeThatFits(_ size: CGSize) -> CGSize {
+        // 确保约束在计算前已建立
+        if markedDirty {
+            setNeedsUpdateConstraints()
+            updateConstraintsIfNeeded()
+        }
+        let compressedW = size.width  > 0 ? size.width  : UIView.layoutFittingCompressedSize.width
+        let compressedH = size.height > 0 ? size.height : UIView.layoutFittingCompressedSize.height
+        if axis == .horizontal {
+            return systemLayoutSizeFitting(
+                CGSize(width: compressedW, height: compressedH),
+                withHorizontalFittingPriority: .fittingSizeLevel,
+                verticalFittingPriority: size.height > 0 ? .required : .fittingSizeLevel
+            )
+        } else {
+            return systemLayoutSizeFitting(
+                CGSize(width: compressedW, height: compressedH),
+                withHorizontalFittingPriority: size.width > 0 ? .required : .fittingSizeLevel,
+                verticalFittingPriority: .fittingSizeLevel
+            )
+        }
+    }
+
     // MARK: - Wrap in scroll view
 
     public func wrapScrollView() -> HaomissyouScrollView {
+        // 若已在某个视图层级中，先移除，避免静默改变 superview 导致调用方困惑
+        removeFromSuperview()
         let scrollView = HaomissyouScrollView()
         scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         scrollView.addSubview(self)
@@ -371,12 +437,19 @@ open class HaomissyouBaseStackView: UIView {
         view.translatesAutoresizingMaskIntoConstraints = false
     }
 
-    private func adjustLabelCompression(_ view: UIView) {
+    /// - Parameter oldAxis: 传入非 nil 时，先将旧 axis 方向的压缩阻力恢复为 `.defaultHigh`，
+    ///   再对新 axis 方向降低优先级，保证 axis 动态切换时两个方向都处于正确状态。
+    private func adjustLabelCompression(_ view: UIView, oldAxis: HaomissyouStackViewAxis? = nil) {
         guard let label = view as? UILabel, label.numberOfLines != 1 else { return }
-        let axis: NSLayoutConstraint.Axis = self.axis == .horizontal ? .horizontal : .vertical
-        let priority = label.contentCompressionResistancePriority(for: axis)
+        if let old = oldAxis {
+            let oldNSAxis: NSLayoutConstraint.Axis = old == .horizontal ? .horizontal : .vertical
+            // 恢复旧方向为默认值，避免两个方向都被降低
+            label.setContentCompressionResistancePriority(.defaultHigh, for: oldNSAxis)
+        }
+        let newNSAxis: NSLayoutConstraint.Axis = self.axis == .horizontal ? .horizontal : .vertical
+        let priority = label.contentCompressionResistancePriority(for: newNSAxis)
         if priority == .defaultHigh {
-            label.setContentCompressionResistancePriority(priority - 0.1, for: axis)
+            label.setContentCompressionResistancePriority(priority - 0.1, for: newNSAxis)
         }
     }
 
@@ -460,6 +533,58 @@ open class HaomissyouBaseStackView: UIView {
     @discardableResult
     public func insertFlexSpace(_ flexible: Bool) -> Self { allViews.last?.hmFlex.isFlexSpace = flexible; return self }
 
+    /// 条件间距：仅在 condition 为 true 时给最后添加的视图设置间距
+    @discardableResult
+    public func insertSpaceIf(_ condition: Bool, _ s: CGFloat) -> Self {
+        if condition { allViews.last?.hmFlex.spacing = s }
+        return self
+    }
+
+    // MARK: - Layout animation
+
+    /// 在 changes 闭包内修改布局属性，并以动画方式过渡到新布局。
+    /// - Parameters:
+    ///   - duration: 动画时长
+    ///   - changes:  在此闭包内执行布局变更（addView / removeView / spacing 修改等）
+    @discardableResult
+    public func animateLayoutChanges(duration: TimeInterval, _ changes: () -> Void) -> Self {
+        changes()
+        UIView.animate(withDuration: duration) { self.superview?.layoutIfNeeded() }
+        return self
+    }
+
+    // MARK: - Separator
+
+    public func moveArrangedSubview(_ view: UIView, to index: Int) {
+        guard allViewsSet.contains(ObjectIdentifier(view)) else { return }
+        let clamped = max(0, min(index, allViews.count - 1))
+        allViews.removeAll { $0 === view }
+        allViews.insert(view, at: clamped)
+        guard !view.isHidden else { return }
+        markedDirty = true
+        setNeedsUpdateConstraints()
+    }
+
+    // MARK: - Separator
+
+    /// 在当前末尾插入一条分隔线视图，交叉轴方向自动填满。
+    /// - Parameters:
+    ///   - color:     分隔线颜色，默认 12% 不透明黑色
+    ///   - thickness: 主轴方向宽度/高度，默认 0.5pt（1px on @2x）
+    @discardableResult
+    public func addSeparator(color: UIColor = UIColor(white: 0, alpha: 0.12),
+                             thickness: CGFloat = 0.5) -> Self {
+        let sep = UIView()
+        sep.backgroundColor = color
+        addArrangedSubview(sep)
+        if axis == .horizontal {
+            sep.hmFlex.w(thickness).alignFill()
+        } else {
+            sep.hmFlex.h(thickness).alignFill()
+        }
+        return self
+    }
+
     // MARK: - Add view chainable methods
 
     @discardableResult
@@ -483,6 +608,11 @@ open class HaomissyouBaseStackView: UIView {
     @discardableResult
     public func addViewLayout(_ view: UIView, layout: (UIView, HaomissyouFlexItem) -> Void) -> Self {
         addArrangedSubview(view, layout: layout); return self
+    }
+
+    @discardableResult
+    public func moveView(_ view: UIView, to index: Int) -> Self {
+        moveArrangedSubview(view, to: index); return self
     }
 
     // MARK: - Per-view spacing chainable methods
@@ -523,6 +653,12 @@ open class HaomissyouBaseStackView: UIView {
     @discardableResult
     public func assignToPtr(_ ptr: UnsafeMutablePointer<HaomissyouBaseStackView?>?) -> Self {
         ptr?.pointee = self; return self
+    }
+
+    /// 安全的 inout 版本，推荐优先使用此方法替代 `assignToPtr`
+    @discardableResult
+    public func assign(to ref: inout HaomissyouBaseStackView?) -> Self {
+        ref = self; return self
     }
 
     // MARK: - Appearance / interaction

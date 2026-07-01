@@ -202,7 +202,13 @@ final class HaomissyouStackEdgeInsets: NSObject {
 
     var margeGuide: HaomissyouMargeGuide {
         if let g = _margeGuide { return g }
-        let g = HaomissyouMargeGuide(view: stackView!, insets: stackView!.insets)
+        guard let sv = stackView else {
+            // stackView 已释放，返回一个无 owner 的安全占位 Guide，避免崩溃
+            let g = HaomissyouMargeGuide()
+            _margeGuide = g
+            return g
+        }
+        let g = HaomissyouMargeGuide(view: sv, insets: sv.insets)
         _margeGuide = g
         return g
     }

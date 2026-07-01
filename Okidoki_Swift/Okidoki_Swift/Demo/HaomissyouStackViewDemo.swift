@@ -18,6 +18,7 @@
 //  Demo 13 - 链式工厂方法 + addViewMake / addViewIf / assignToPtr
 //  Demo 14 - 布局约束链式方法 (addTo / edge / size / center)
 //  Demo 15 - HaomissyouScrollView RTL 演示容器
+//  Demo 16 - 新增 API：moveView / animateLayoutChanges / addSeparator / insertSpaceIf / assign(to:)
 //
 
 import UIKit
@@ -45,6 +46,7 @@ public final class HaomissyouDemoListViewController: UIViewController {
         ("Demo 13", "链式工厂 addViewMake / addViewIf / assignToPtr", { HaomissyouDemo13ViewController() }),
         ("Demo 14", "布局约束链式 addTo / edge / size / center",      { HaomissyouDemo14ViewController() }),
         ("Demo 15", "HaomissyouScrollView LTR/RTL 对比演示",         { HaomissyouDemo15ViewController() }),
+        ("Demo 16", "moveView / animateLayoutChanges / addSeparator / insertSpaceIf / assign", { HaomissyouDemo16ViewController() }),
     ]
 
     public override func viewDidLoad() {
@@ -1202,8 +1204,6 @@ final class HaomissyouDemo15ViewController: UIViewController {
 
     private let ltrScrollView = HaomissyouScrollView()
     private let rtlScrollView = HaomissyouScrollView()
-    private var ltrStack: HaomissyouStackView?
-    
     private let toggleBtn = UIButton(type: .system)
     private var isRTL = false
     private weak var statusLabel: UILabel?
@@ -1239,7 +1239,6 @@ final class HaomissyouDemo15ViewController: UIViewController {
 
         // ── LTR 行（默认） ────────────────────────────────────
         let ltrStack = makeCardStack()
-        self.ltrStack = ltrStack
         ltrScrollView.semanticContentAttribute = .unspecified   // 默认 LTR
         ltrScrollView.showsHorizontalScrollIndicator = true
         ltrScrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -1266,6 +1265,61 @@ final class HaomissyouDemo15ViewController: UIViewController {
             rtlStack.bottomAnchor.constraint(equalTo: rtlScrollView.bottomAnchor),
             rtlStack.trailingAnchor.constraint(equalTo: rtlScrollView.trailingAnchor),
             rtlStack.heightAnchor.constraint(equalTo: rtlScrollView.heightAnchor),
+        ])
+
+        // ── 垂直滚动 RTL 对比 ────────────────────────────────
+        func makeVerticalStack(prefix: String) -> HaomissyouStackView {
+            let stack = HaomissyouStackView.vertical().justifyStart().space(8).inset(8, 12, 8, 12)
+            let colors: [UIColor] = [.hmBlue, .hmGreen, .hmOrange, .hmPink, .hmPurple]
+            colors.enumerated().forEach { (i, color) in
+                let row = HaomissyouStackView.horizontal()
+                    .alignCenter()
+                    .space(10)
+                    .inset(6, 10, 6, 10)
+                    .bgColor(color)
+                    .corner(8)
+                row.hmFlex.h(44)
+                let num = UILabel()
+                num.text = "\(prefix) \(i + 1)"
+                num.textColor = .white
+                num.font = .boldSystemFont(ofSize: 14)
+                row.addArrangedSubview(num)
+                stack.addArrangedSubview(row)
+            }
+            return stack
+        }
+
+        // LTR 垂直 ScrollView
+        let ltrVScroll = HaomissyouScrollView()
+        ltrVScroll.semanticContentAttribute = .unspecified
+        ltrVScroll.showsVerticalScrollIndicator = true    // 指示器应在右侧
+        ltrVScroll.translatesAutoresizingMaskIntoConstraints = false
+        let ltrVStack = makeVerticalStack(prefix: "Row")
+        ltrVStack.translatesAutoresizingMaskIntoConstraints = false
+        ltrVScroll.addSubview(ltrVStack)
+        NSLayoutConstraint.activate([
+            ltrVStack.topAnchor.constraint(equalTo: ltrVScroll.topAnchor),
+            ltrVStack.leadingAnchor.constraint(equalTo: ltrVScroll.leadingAnchor),
+            ltrVStack.trailingAnchor.constraint(equalTo: ltrVScroll.trailingAnchor),
+            ltrVStack.bottomAnchor.constraint(equalTo: ltrVScroll.bottomAnchor),
+            ltrVStack.widthAnchor.constraint(equalTo: ltrVScroll.widthAnchor),
+        ])
+
+        // RTL 垂直 ScrollView —— 仅做水平镜像，垂直方向不受影响
+        // 测试重点：NSHashTable 修复后，滚动指示器不应被 scaleX(-1) 翻转
+        let rtlVScroll = HaomissyouScrollView()
+        rtlVScroll.semanticContentAttribute = .forceRightToLeft
+        rtlVScroll.showsVerticalScrollIndicator = true    // 指示器应仍在右侧（未被翻转）
+        rtlVScroll.translatesAutoresizingMaskIntoConstraints = false
+        let rtlVStack = makeVerticalStack(prefix: "صف")   // 阿拉伯语"行"，视觉验证镜像复原
+        rtlVStack.translatesAutoresizingMaskIntoConstraints = false
+        rtlVScroll.addSubview(rtlVStack)
+        NSLayoutConstraint.activate([
+            rtlVStack.topAnchor.constraint(equalTo: rtlVScroll.topAnchor),
+            rtlVStack.leadingAnchor.constraint(equalTo: rtlVScroll.leadingAnchor),
+            rtlVStack.trailingAnchor.constraint(equalTo: rtlVScroll.trailingAnchor),
+            rtlVStack.bottomAnchor.constraint(equalTo: rtlVScroll.bottomAnchor),
+            rtlVStack.widthAnchor.constraint(equalTo: rtlVScroll.widthAnchor),
         ])
 
         // ── 切换按钮 ──────────────────────────────────────────
@@ -1295,28 +1349,42 @@ final class HaomissyouDemo15ViewController: UIViewController {
         // ── 布局 ──────────────────────────────────────────────
         let root = HaomissyouStackView.vertical().space(16).inset(24, 16, 24, 16)
         root.addArrangedSubview(desc)
-        root.addArrangedSubview(section(title: "LTR（默认）：卡片 1 在左侧 → 向右滑动"))
+        root.addArrangedSubview(section(title: "水平 LTR（默认）：卡片 1 在左侧 → 向右滑动"))
         root.addArrangedSubview(ltrScrollView)
         ltrScrollView.hmFlex.h(100)
-        root.addArrangedSubview(section(title: "RTL（forceRightToLeft）：卡片 1 在右侧 → 向左滑动"))
+        root.addArrangedSubview(section(title: "水平 RTL（forceRightToLeft）：卡片 1 在右侧 → 向左滑动"))
         root.addArrangedSubview(rtlScrollView)
         rtlScrollView.hmFlex.h(100)
+        root.addArrangedSubview(section(title: "垂直 LTR：指示器在右侧（正常）"))
+        root.addArrangedSubview(ltrVScroll)
+        ltrVScroll.hmFlex.h(150)
+        root.addArrangedSubview(section(title: "垂直 RTL：指示器应仍在右侧（NSHashTable 修复验证）"))
+        root.addArrangedSubview(rtlVScroll)
+        rtlVScroll.hmFlex.h(150)
         root.addArrangedSubview(toggleBtn)
         root.addArrangedSubview(sl)
 
+        let pageScroll = UIScrollView()
+        pageScroll.translatesAutoresizingMaskIntoConstraints = false
         root.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(root)
+        view.addSubview(pageScroll)
+        pageScroll.addSubview(root)
         NSLayoutConstraint.activate([
-            root.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            root.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            root.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            pageScroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            pageScroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            pageScroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            pageScroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            root.topAnchor.constraint(equalTo: pageScroll.topAnchor),
+            root.leadingAnchor.constraint(equalTo: pageScroll.leadingAnchor),
+            root.trailingAnchor.constraint(equalTo: pageScroll.trailingAnchor),
+            root.bottomAnchor.constraint(equalTo: pageScroll.bottomAnchor),
+            root.widthAnchor.constraint(equalTo: pageScroll.widthAnchor),
         ])
     }
 
     @objc private func toggleDirection() {
         isRTL.toggle()
         ltrScrollView.semanticContentAttribute = isRTL ? .forceRightToLeft : .unspecified
-        self.ltrStack?.semanticContentAttribute = isRTL ? .forceRightToLeft : .unspecified
         // 强制立刻重新计算 effectiveUserInterfaceLayoutDirection 并镜像
         ltrScrollView.setNeedsLayout()
         ltrScrollView.layoutIfNeeded()
@@ -1327,3 +1395,190 @@ final class HaomissyouDemo15ViewController: UIViewController {
     }
 }
 
+
+// ────────────────────────────────────────────────────────────────────
+// MARK: - Demo 16  新增 API：moveView / animateLayoutChanges / addSeparator / insertSpaceIf / assign(to:)
+// ────────────────────────────────────────────────────────────────────
+
+final class HaomissyouDemo16ViewController: UIViewController {
+
+    // assign(to:) 演示用：持有 stackView 引用
+    private var capturedStack: HaomissyouBaseStackView?
+
+    // 用于 moveView 演示
+    private let moveStack = HaomissyouStackView.horizontal()
+        .justifyStart()
+        .alignCenter()
+        .space(8)
+        .inset(8, 12, 8, 12)
+        .bgColor(.systemGray5)
+        .corner(10)
+
+    private var moveBoxes: [UIView] = []
+
+    // 用于 animateLayoutChanges 演示
+    private let animStack = HaomissyouStackView.horizontal()
+        .justifyStart()
+        .alignCenter()
+        .space(8)
+        .inset(8, 12, 8, 12)
+        .bgColor(.systemGray6)
+        .corner(10)
+    private let animBox1 = colorBox(.hmBlue,   "A", width: 50, height: 44)
+    private let animBox2 = colorBox(.hmGreen,  "B", width: 50, height: 44)
+    private var animExpanded = false
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+
+        // ── Section 1：addSeparator ───────────────────────────
+        let sepStack = HaomissyouStackView.vertical()
+            .bgColor(.systemGray6)
+            .corner(12)
+            .inset(0, 12, 0, 12)
+
+        for (i, title) in ["通讯录", "设置", "关于"].enumerated() {
+            let row = HaomissyouStackView.horizontal()
+                .alignCenter()
+                .space(10)
+                .inset(12, 0, 12, 0)
+            let icon = UIView()
+            icon.backgroundColor = [UIColor.hmBlue, .hmGreen, .hmOrange][i]
+            icon.layer.cornerRadius = 6
+            icon.hmFlex.square(28)
+            let label = UILabel()
+            label.text = title
+            label.font = .systemFont(ofSize: 16)
+            row.addArrangedSubview(icon)
+            row.addArrangedSubview(label)
+            sepStack.addArrangedSubview(row)
+            // 最后一行不加分隔线
+            if i < 2 { sepStack.addSeparator() }           // addSeparator()
+        }
+
+        // ── Section 2：insertSpaceIf ──────────────────────────
+        let isProUser = true
+        let badgeStack = HaomissyouStackView.horizontal()
+            .alignCenter()
+            .inset(8, 12, 8, 12)
+            .bgColor(.systemGray6)
+            .corner(10)
+
+        let nameLabel = UILabel()
+        nameLabel.text = "用户名"
+        nameLabel.font = .systemFont(ofSize: 16)
+
+        let badge = UILabel()
+        badge.text = "PRO"
+        badge.font = .boldSystemFont(ofSize: 10)
+        badge.textColor = .white
+        badge.backgroundColor = .hmBlue
+        badge.layer.cornerRadius = 4
+        badge.layer.masksToBounds = true
+        badge.textAlignment = .center
+        badge.hmFlex.w(36).h(18)
+
+        badgeStack
+            .addView(nameLabel)
+            .insertSpaceIf(isProUser, 8)    // insertSpaceIf：isProUser 才插间距
+            .addViewIf(isProUser, badge)
+            .insertSpace(20)
+            .addView({
+                let l = UILabel()
+                l.text = isProUser ? "✓ insertSpaceIf(true, 8) 生效" : "✗ 不生效"
+                l.font = .systemFont(ofSize: 12)
+                l.textColor = .secondaryLabel
+                return l
+            }())
+
+        // ── Section 3：moveView / moveArrangedSubview ─────────
+        moveStack.hmFlex.h(56)
+        let colors: [UIColor] = [.hmBlue, .hmGreen, .hmOrange, .hmPink, .hmPurple]
+        moveBoxes = colors.enumerated().map { (i, c) in colorBox(c, "\(i+1)", width: 44, height: 40) }
+        moveBoxes.forEach { moveStack.addArrangedSubview($0) }
+
+        let moveBtn = makeBtn("把①移到末尾", color: .hmTeal)
+        moveBtn.addTarget(self, action: #selector(doMoveView), for: .touchUpInside)
+
+        // ── Section 4：animateLayoutChanges ───────────────────
+        animStack.hmFlex.h(60)
+        let animBox3 = colorBox(.hmOrange, "C", width: 50, height: 44)
+        [animBox1, animBox2, animBox3].forEach { animStack.addArrangedSubview($0) }
+
+        let animBtn = makeBtn("动画切换间距", color: .hmPurple)
+        animBtn.addTarget(self, action: #selector(doAnimToggle), for: .touchUpInside)
+
+        // ── Section 5：assign(to:) ────────────────────────────
+        var assignLabel: UILabel?
+        let assignStack = HaomissyouStackView.horizontal()
+            .alignCenter()
+            .space(8)
+            .inset(8, 12, 8, 12)
+            .bgColor(.systemGray6)
+            .corner(10)
+            .assign(to: &capturedStack)                             // assign(to:)
+
+        let al = UILabel()
+        al.font = .systemFont(ofSize: 13)
+        al.textColor = .secondaryLabel
+        al.text = "capturedStack === assignStack: \(capturedStack === assignStack)"
+        al.numberOfLines = 2
+        assignLabel = al
+        assignStack.addArrangedSubview(al)
+
+        // ── Root 布局 ─────────────────────────────────────────
+        let root = HaomissyouStackView.vertical().space(16).inset(20, 16, 20, 16)
+        root.addArrangedSubview(section(title: "addSeparator() — 自动插入分隔线"))
+        root.addArrangedSubview(sepStack)
+        root.addArrangedSubview(section(title: "insertSpaceIf(condition, spacing) — 条件间距"))
+        root.addArrangedSubview(badgeStack)
+        root.addArrangedSubview(section(title: "moveArrangedSubview / moveView — 重排序"))
+        root.addArrangedSubview(moveStack)
+        root.addArrangedSubview(moveBtn)
+        root.addArrangedSubview(section(title: "animateLayoutChanges(duration:_:) — 布局动画"))
+        root.addArrangedSubview(animStack)
+        root.addArrangedSubview(animBtn)
+        root.addArrangedSubview(section(title: "assign(to:) — 安全 inout 引用捕获"))
+        root.addArrangedSubview(assignStack)
+
+        let scroll = root.wrapScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(scroll)
+        NSLayoutConstraint.activate([
+            scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+
+        _ = assignLabel  // suppress warning
+    }
+
+    @objc private func doAnimToggle() {
+        animExpanded.toggle()
+        animStack.animateLayoutChanges(duration: 0.35) {       // animateLayoutChanges
+            self.animStack.setCustomSpacing(self.animExpanded ? 40 : 8, afterView: self.animBox1)
+            self.animStack.setCustomSpacing(self.animExpanded ? 40 : 8, afterView: self.animBox2)
+        }
+    }
+
+    @objc private func doMoveView() {
+        guard let first = moveBoxes.first else { return }
+        moveStack.animateLayoutChanges(duration: 0.3) {
+            self.moveStack.moveArrangedSubview(first, to: self.moveBoxes.count - 1)  // moveArrangedSubview
+        }
+        moveBoxes.append(moveBoxes.removeFirst())
+    }
+
+    private func makeBtn(_ title: String, color: UIColor) -> UIButton {
+        let btn = UIButton(type: .system)
+        btn.setTitle(title, for: .normal)
+        btn.setTitleColor(.white, for: .normal)
+        btn.backgroundColor = color
+        btn.layer.cornerRadius = 10
+        btn.titleLabel?.font = .boldSystemFont(ofSize: 14)
+        btn.hmFlex.h(44)
+        return btn
+    }
+}

@@ -78,6 +78,10 @@ class HaomissyouLayoutGuide: UILayoutGuide {
 
     weak var stackView: UIView? {
         didSet {
+            // 从旧 owner 移除，避免 Guide 同时挂在两个视图上
+            if let old = oldValue, old !== stackView {
+                old.removeLayoutGuide(self)
+            }
             if let view = stackView {
                 view.addLayoutGuide(self)
             }
