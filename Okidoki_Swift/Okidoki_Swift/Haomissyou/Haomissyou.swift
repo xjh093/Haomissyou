@@ -7,8 +7,8 @@
 //
 //  MIT License
 //
-// version: 0.1.4
-// 2026-06-29 15:41:55
+// version: 0.1.5
+// 2026-07-01 15:50:24
 
 
 import UIKit

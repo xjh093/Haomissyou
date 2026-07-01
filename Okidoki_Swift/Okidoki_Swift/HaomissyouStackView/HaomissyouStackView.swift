@@ -6,8 +6,8 @@
 //
 //  MIT License
 //
-// version: 0.1.0
-// 2026-06-30 14:44:59
+// version: 0.1.1
+// 2026-07-01 15:50:44
 
 import UIKit
 import ObjectiveC

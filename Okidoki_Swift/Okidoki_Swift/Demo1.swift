@@ -113,7 +113,8 @@ class Demo1: UIViewController {
         
         let shadowPath = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 150, height: 100), cornerRadius:10)
 
-        let view3 = UIView().haomissyou
+        //let view3 =
+        UIView().haomissyou
         .addToSuperview(scrollView)
         //.frame("{{20, 210}, {150, 100}}")
         .batch({ hm in
@@ -141,10 +142,12 @@ class Demo1: UIViewController {
         .whenDisabled({ view in
             view.backgroundColor = UIColor.systemGreen
         })
-        .getView();
-        self.view3 = view3
+        .assign(to: &self.view3);
+        //.getView();
+        //self.view3 = view3
         
-                
+        print("view3 after assign: \(view3)")
+        
         UIView().haomissyou
         .addToSuperview(scrollView)
         .addSubviewWithConfig(UILabel(), { hm in
@@ -157,7 +160,7 @@ class Demo1: UIViewController {
             hm.widthAnchor(150)
               .heightAnchor(100)
               .topAnchor([view3])
-              .leadingAnchor([view3.trailingAnchor, 20])
+              .leadingAnchor([view3!.trailingAnchor, 20])
         })
         .bgColor("#4ECD00")
         .cnRadius(10)

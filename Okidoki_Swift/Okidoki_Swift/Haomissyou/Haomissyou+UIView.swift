@@ -333,6 +333,20 @@ public extension Haomissyou {
         layer.frame      = view.bounds
         return self
     }
+    
+    /// 在链式调用中将当前视图赋值给外部变量，无需打断链式语法。
+    ///
+    /// 适用于任意 `UIView` 子类，利用泛型保留具体类型，赋值后变量类型与调用者一致。
+    ///
+    /// ```swift
+    /// var label: UILabel?
+    /// UILabel().haomissyou.text("text").assign(to: &label)
+    /// ```
+    @discardableResult
+    func assign<T: UIView>(to ref: inout T?) -> Self {
+        ref = self.view as? T
+        return self
+    }
 }
 
 // MARK: - HaomissyouGradientDirection
