@@ -17,6 +17,15 @@ private final class _HMTrailingGuide: HaomissyouLayoutGuide {}
 
 // MARK: - HaomissyouMargeGuide
 
+/// 承载 `UIEdgeInsets` 的布局 Guide，作为 StackView 内容区域的逻辑边界。
+///
+/// ## 设计原理
+/// StackView 的 `insets` 属性（内边距）不直接修改视图的 `layoutMargins`，
+/// 而是在 StackView 内部创建一个 `HaomissyouMargeGuide`，其四条边分别通过
+/// 约束与 StackView 的四条边保持偏移（即 insets 值）。
+///
+/// 所有子视图约束的锚点都连到这个 Guide 上，而不是直接连 StackView 本身。
+/// 这样修改 `insets` 时只需更新四条约束的 `constant`，无需重建全部子视图约束。
 final class HaomissyouMargeGuide: UILayoutGuide {
 
     weak var top: NSLayoutConstraint?
@@ -41,6 +50,30 @@ final class HaomissyouMargeGuide: UILayoutGuide {
 
 // MARK: - HaomissyouStackEdgeInsets
 
+/// 为 `HaomissyouFlexManager` 提供所有约束锚点的统一入口。
+///
+/// ## 职责
+/// 这个类是约束生成层与视图层之间的**锚点适配器**，屏蔽了以下复杂性：
+///
+/// ### 1. insets 内边距
+/// 通过懒加载的 `HaomissyouMargeGuide` 提供偏移后的四边锚点（`topAnchor` /
+/// `leadingAnchor` / `bottomAnchor` / `trailingAnchor`），子视图的交叉轴
+/// 约束全部连到这个 Guide，而非 StackView 本身。
+///
+/// ### 2. justify 感知的主轴起止锚点（jLeadingAnchor / jTrailingAnchor 等）
+/// 对于需要两端对称 Guide 的 justify 模式（`center` / `spaceAround` /
+/// `spaceEvenly`），主轴的起始锚点不是 `margeGuide.leadingAnchor`，
+/// 而是一个懒加载的侧边 Guide 的内侧边缘（`leadingGuide.trailingAnchor`）。
+/// 这样侧边 Guide 的宽度就自然等于视图链起始端到边界的距离，
+/// 可以通过 `widthAnchors[0] == widthAnchors[1]` 实现两端对称。
+///
+/// ### 3. 对称 Guide 的尺寸锚点
+/// `widthAnchors` / `heightAnchors` 分别返回两端 Guide 的尺寸 Dimension，
+/// 供 `HaomissyouFlexManager` 在循环后添加对称约束使用。
+///
+/// ## 懒加载设计
+/// 四个侧边 Guide（_topGuide / _leadingGuide / _bottomGuide / _trailingGuide）
+/// 只在对应 justify 模式下才会被访问和创建，避免不必要的 Guide 对象。
 final class HaomissyouStackEdgeInsets: NSObject {
 
     weak var stackView: HaomissyouBaseStackView?

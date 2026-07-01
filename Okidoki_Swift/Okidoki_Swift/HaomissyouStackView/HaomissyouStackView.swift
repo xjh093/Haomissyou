@@ -9,11 +9,10 @@
 // version: 0.1.0
 // 2026-06-30 14:44:59
 
-
 import UIKit
 import ObjectiveC
 
-// MARK: - Color helper
+// MARK: - Color helper (replaces ZLColorFromObj)
 
 private func _hmColorFromAny(_ value: Any) -> UIColor? {
     if let color = value as? UIColor { return color }
@@ -48,7 +47,13 @@ private var _hmTapActionKey: UInt8 = 0
 
 // MARK: - HaomissyouScrollView
 
-/// RTL-aware scroll view wrapper
+/// RTL（从右到左书写方向）感知的滚动视图包装器。
+///
+/// ## 设计原理
+/// 在阿拉伯语等 RTL 语言环境下，`UIScrollView` 本身不会自动翻转内容方向。
+/// 此类在 `layoutSubviews` 中检测 `effectiveUserInterfaceLayoutDirection`，
+/// 当为 RTL 时，对自身及所有子视图施加 `scaleX(-1)` 变换，
+/// 使内容水平镜像，实现正确的 RTL 布局方向。
 open class HaomissyouScrollView: UIScrollView {
     open override func layoutSubviews() {
         super.layoutSubviews()
@@ -63,7 +68,63 @@ open class HaomissyouScrollView: UIScrollView {
 
 // MARK: - HaomissyouBaseStackView
 
-/// Base stack view
+/// 核心 StackView 基类，提供类 Flexbox 的线性布局能力。
+///
+/// ## 整体架构
+///
+/// ```
+/// HaomissyouBaseStackView
+///   ├── axis              主轴方向（水平 / 垂直）
+///   ├── alignment         交叉轴对齐（fill / start / center / end）
+///   ├── justifyContent    主轴分布（fill / fillEqually / start / center / end /
+///   │                              spaceBetween / spaceAround / spaceEvenly）
+///   ├── insets            内边距（由 HaomissyouStackEdgeInsets 管理）
+///   ├── spacing           全局默认间距（子视图未设置时回退到此值）
+///   │
+///   ├── allViews          所有已添加的视图（含隐藏视图）
+///   ├── arrangedViews     参与布局的视图（过滤隐藏视图，并确保已 addSubview）
+///   │
+///   └── layoutManager     HaomissyouFlexManager（约束生成引擎）
+/// ```
+///
+/// ## 布局更新时机
+///
+/// 采用 **脏标记 + updateConstraints 延迟更新** 机制，避免频繁重建约束：
+///
+/// 1. 任何影响布局的属性变化（axis / alignment / justifyContent / 视图增删）
+///    → `markedDirty = true` + `setNeedsUpdateConstraints()`
+/// 2. 系统在下一个 layout pass 调用 `updateConstraints()`
+/// 3. `updateConstraints()` 检查 `markedDirty`，若为 true 则：
+///    - `removeAllSpacing()` + `deactivateConstraints()` 清除旧状态
+///    - `addHorizontalLayoutConstraints()` + `addVerticalLayoutConstraints()`（互斥执行）
+///    - `activateConstraints()` 批量激活
+///    - `markedDirty = false`
+///
+/// ## 动态局部更新（不触发全量重建）
+///
+/// 以下操作会尝试**直接修改约束 constant** 而非整体重建：
+/// - `setCustomSpacing(_:afterView:)` → 找到 `.spacing` 类型约束直接改值
+/// - `setCustomMinSpacing` / `setCustomMaxSpacing` → 同上
+/// - `updateInsets(_:)` → 只更新 `HaomissyouMargeGuide` 的四条边约束
+///
+/// ## Chainable API 设计
+///
+/// 所有配置方法均返回 `Self`，支持链式调用：
+/// ```swift
+/// HaomissyouStackView.horizontal()
+///     .justifySpaceBetween()
+///     .alignCenter()
+///     .inset(8, 16, 8, 16)
+///     .addView(labelA)
+///     .insertSpace(12)
+///     .addView(labelB)
+/// ```
+///
+/// ## wrapScrollView()
+///
+/// 一键将 StackView 嵌入 `HaomissyouScrollView`，并根据 `axis` 自动设置：
+/// - 水平 StackView → 固定高度等于 ScrollView，宽度低优先级等于 ScrollView
+/// - 垂直 StackView → 固定宽度等于 ScrollView，高度低优先级等于 ScrollView
 open class HaomissyouBaseStackView: UIView {
 
     // MARK: - Public properties
@@ -643,5 +704,8 @@ open class HaomissyouBaseStackView: UIView {
 
 // MARK: - HaomissyouStackView
 
-/// Concrete stack view
+/// 具体 StackView 实现类，继承 `HaomissyouBaseStackView`，无额外扩展。
+///
+/// 所有功能均由基类提供，此类作为对外暴露的公开类型，
+/// 方便子类化或在不影响基类的情况下添加自定义行为。
 open class HaomissyouStackView: HaomissyouBaseStackView {}

@@ -10,6 +10,53 @@ import UIKit
 
 // MARK: - HaomissyouFlexManager
 
+/// 约束生成引擎，负责将 StackView 的布局参数翻译成 `NSLayoutConstraint` 数组。
+///
+/// ## 架构定位
+///
+/// ```
+/// HaomissyouBaseStackView（布局控制层）
+///         │  读取 axis / alignment / justifyContent / arrangedViews
+///         ▼
+/// HaomissyouFlexManager（约束生成层）← 读取每个视图的 HaomissyouFlexItem
+///         │  生成 NSLayoutConstraint 数组
+///         ▼
+/// HaomissyouStackEdgeInsets（锚点适配层）
+///         │  提供 insets 感知 + justify 感知的锚点
+///         ▼
+/// HaomissyouLayoutGuide（占位 Guide）
+/// ```
+///
+/// ## 工作流程
+///
+/// 1. `HaomissyouBaseStackView.updateConstraints()` 调用：
+///    - `deactivateConstraints()` → 停用并清空旧约束
+///    - `removeAllSpacing()` → 移除旧 Guide
+///    - `addHorizontalLayoutConstraints()` 或 `addVerticalLayoutConstraints()`（互斥）
+///    - `activateConstraints()` → 批量激活新约束
+///
+/// 2. 两个布局方法通过 `guard isHorizontal` 互斥，调用方可以两个都调，
+///    让守卫条件自动过滤。
+///
+/// ## 约束链模型
+///
+/// 循环内用 `nextAnchor` 游标将所有视图和 Guide 串成一条链：
+///
+/// ```
+/// jLeadingAnchor
+///   └─ [view.leading == nextAnchor]  → nextAnchor = view.trailing
+///       └─ [flexSpace.leading == nextAnchor]（可选）→ nextAnchor = flexSpace.trailing
+///           └─ [spacing.leading == nextAnchor]（可选）→ nextAnchor = spacing.trailing
+///               └─ [equalSpacing.leading == nextAnchor]（可选）→ nextAnchor = equalSpacing.trailing
+///                   └─ 下一个视图...
+///   jTrailingAnchor（最终尾部约束）
+/// ```
+///
+/// **顺序严格不可乱**：每次更新 `nextAnchor` 即确定了物理位置，无法回退。
+///
+/// ## 约束不激活原则
+/// 所有约束只 `append` 到 `self.constraints`，**不直接激活**。
+/// 由外部 `activateConstraints()` 统一批量激活，避免增量激活时的性能损耗。
 final class HaomissyouFlexManager: NSObject {
 
     weak var stackView: HaomissyouBaseStackView?

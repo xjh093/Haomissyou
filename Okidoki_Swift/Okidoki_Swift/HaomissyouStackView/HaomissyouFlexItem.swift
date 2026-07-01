@@ -9,7 +9,7 @@
 import UIKit
 import ObjectiveC
 
-// MARK: - UIView dimension constraint helpers
+// MARK: - UIView dimension constraint helpers (replaces ZLLayout dependency)
 
 private var _hmWidthConsKey:     UInt8 = 0
 private var _hmHeightConsKey:    UInt8 = 0
@@ -79,8 +79,10 @@ extension UIView {
 
 private var _hmFlexItemKey: UInt8 = 0
 
+/// 为每个 `UIView` 懒加载一个 `HaomissyouFlexItem`，通过 Associated Object 绑定。
+/// 使用方式：`view.hmFlex.spacing = 8`，`view.hmFlex.flexValue = 1`
 public extension UIView {
-    /// 获取关联的弹性布局属性对象
+    /// 获取关联的弹性布局属性对象 (equivalent to zl_flex)
     var hmFlex: HaomissyouFlexItem {
         if let item = objc_getAssociatedObject(self, &_hmFlexItemKey) as? HaomissyouFlexItem {
             return item
@@ -94,6 +96,42 @@ public extension UIView {
 
 // MARK: - HaomissyouFlexItem
 
+/// 每个子视图的 Flex 布局配置容器，通过 `UIView.hmFlex` 访问。
+///
+/// ## 职责
+/// `HaomissyouFlexItem` 是**数据层**，存储单个子视图在 StackView 中的所有布局参数。
+/// `HaomissyouFlexManager`（约束层）读取这些参数来决定生成什么约束。
+///
+/// ## 属性分类
+///
+/// ### 主轴间距（影响 nextAnchor 约束链）
+/// - `spacing`：与下一个视图的固定间距。值 `< 0` 时回退使用 `stackView.spacing`
+/// - `minSpacing`：间距下限（`>= minSpacing`，值 `< 0` 表示不设置）
+/// - `maxSpacing`：间距上限（`<= maxSpacing`，值 `< 0` 表示不设置）
+/// - `isFlexSpace`：是否在视图尾部插入弹性 Guide（fill/fillEqually 模式有效）
+///
+/// ### 主轴弹性比例
+/// - `flexValue`：Flex 权重。`> 0` 时与同轴其他 flex 视图按比例分配剩余空间。
+///   最终生成 `widthAnchor == firstFlexView.widthAnchor × (flex/firstFlex)` 约束。
+///
+/// ### 交叉轴对齐
+/// - `alignSelf`：覆盖 StackView 全局 `alignment`。未显式设置时继承全局值。
+/// - `startSpacing`：交叉轴起始端的额外内边距（叠加在 insets 之上）
+/// - `endSpacing`：交叉轴末端的额外内边距
+///
+/// ### 尺寸约束（独立于 StackView 约束链）
+/// - `width` / `height` / `minWidth` / `maxWidth` / `minHeight` / `maxHeight`：
+///   通过 `hmSetWidth` 等帮助方法为视图本身添加独立的尺寸约束，
+///   与主轴链约束无关，可随时修改 `constant` 而无需重建布局。
+///
+/// ## 动态更新设计
+/// 属性的 `didSet` 会尝试**直接修改已有约束的 `constant`**（通过 `hmItem` 标签查找），
+/// 只在找不到对应约束时才回退到 `triggerStackViewUpdate()`（整体重建）。
+/// 这是性能优化的关键：频繁调用 `spacing = x` 不会触发全量重建。
+///
+/// ## KVO 监听 isHidden
+/// `weakView` 设置时自动注册 `isHidden` 的 KVO，视图隐藏/显示时
+/// 通知 StackView 标记 dirty 并重建约束（隐藏的视图不参与排列）。
 public final class HaomissyouFlexItem: NSObject {
 
     // MARK: - Backing storage
@@ -196,7 +234,7 @@ public final class HaomissyouFlexItem: NSObject {
         }
     }
 
-    // MARK: - Flex spacing flag (JustifyFill 才会有效)
+    // MARK: - Flex spacing flag (ZLJustifyFill 才会有效)
 
     public var isFlexSpace: Bool = false {
         didSet {
@@ -254,7 +292,7 @@ public final class HaomissyouFlexItem: NSObject {
         }
     }
 
-    // MARK: - Internal bypass setters
+    // MARK: - Internal bypass setters (skip side-effects, used by ZLBaseStackView)
 
     func setSpacingWithoutUpdate(_ v: CGFloat)    { _spacing    = v }
     func setMinSpacingWithoutUpdate(_ v: CGFloat) { _minSpacing  = v }
