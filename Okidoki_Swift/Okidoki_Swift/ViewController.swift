@@ -16,6 +16,7 @@ class ViewController: UIViewController {
         "UITextField",
         "AutoLayout",
         "HaomissyouStackView",
+        "HaomissyouListKit",
         "Default",
     ]
     
@@ -59,6 +60,8 @@ class ViewController: UIViewController {
                     self.navigationController?.pushViewController(Demo4(), animated: true)
                 case 4:
                     self.navigationController?.pushViewController(HaomissyouDemoListViewController(), animated: true)
+                case 5:
+                    self.navigationController?.pushViewController(DemoListViewController(), animated: true)
                 default:
                     self.navigationController?.pushViewController(DemoDefault(), animated: true)
                 }

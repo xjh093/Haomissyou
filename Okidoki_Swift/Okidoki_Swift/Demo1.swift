@@ -142,11 +142,13 @@ class Demo1: UIViewController {
         .whenDisabled({ view in
             view.backgroundColor = UIColor.systemGreen
         })
-        .assign(to: &self.view3);
+        //.assign(to: &self.view3)
+        .assign(to: &view3)
+        ;
         //.getView();
         //self.view3 = view3
         
-        print("view3 after assign: \(view3)")
+        //print("view3 after assign: \(view3)")
         
         UIView().haomissyou
         .addToSuperview(scrollView)
